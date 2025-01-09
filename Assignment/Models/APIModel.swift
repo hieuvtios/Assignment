@@ -7,12 +7,14 @@
 
 import Foundation
 import Alamofire
-
+import CoreData
 class APIService {
+    let coreDataStack = CoreDataStack.shared
+    
     init(){}
     
-    func fetchGithubUsers(completion: @escaping (Result<[GithubUser], Error>) -> Void) {
-        AF.request(Constants.serverAPI).responseDecodable(of: [GithubUser].self) { response in
+    func fetchGithubUsers(completion: @escaping (Result<[User], Error>) -> Void) {
+        AF.request(Constants.serverAPI).responseDecodable(of: [User].self) { response in
             switch response.result {
             case .success(let users):
                 completion(.success(users))
@@ -21,4 +23,6 @@ class APIService {
             }
         }
     }
+
 }
+
