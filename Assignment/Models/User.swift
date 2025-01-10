@@ -15,7 +15,7 @@ import Alamofire
 
 class GitHubService {
     private let perPage = 20
-    private var since = 0
+    var since = 0
     private let context = CoreDataStack.shared
     let coreDataStack = CoreDataStack.shared
 
@@ -53,7 +53,6 @@ class GitHubService {
 
     // Fetch users from GitHub API
     func fetchUsers(completion: @escaping (Result<[User], Error>) -> Void) {
-        print("fetchUsers")
         let urlString = "https://api.github.com/users"
         let parameters: [String: Any] = [
             "per_page": perPage,

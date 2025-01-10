@@ -25,10 +25,9 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
         super.viewDidLoad()
         self.tblGithubUsers.prefetchDataSource = self
         setupFetchedResultsController()
-        self.tblGithubUsers.estimatedRowHeight = 120
-        self.tblGithubUsers.rowHeight = UITableView.automaticDimension
 
         registerNib()
+        // Load users from core data if cached
         if let cachedUsers = fetchedResultsController.fetchedObjects, !cachedUsers.isEmpty {
             // Limit to 20 users
             self.githubUsers = cachedUsers.prefix(20).map {
@@ -41,7 +40,8 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
                 self.tblGithubUsers.reloadData()
             }
         } else {
-            loadGitHubUsersFromAPI()
+            // Request from API
+            loadFirstPage()
         }
     }
     
@@ -67,8 +67,8 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
             print("Failed to delete records from Core Data: \(error)")
         }
     }
-    // Fetch all github users from API
-    func loadGitHubUsersFromAPI() {
+    // Fetch all github users from API first page
+    func loadFirstPage() {
         APIService().fetchGithubUsers { [weak self] result in
                 guard let self = self else { return }
                 
@@ -102,7 +102,7 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
     }
     
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        return 120
+        return 200
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -110,13 +110,20 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
                 return UITableViewCell()
             }
             let user = githubUsers[indexPath.row]
-            cell.lblUsername.text = user.login
+        cell.lblUsername.text = "Index:\(indexPath.row) - \(user.login)"
             cell.imgAvatar.sd_setImage(with: NSURL(string: user.avatar_url) as URL?)
             return cell
     }
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        // present UserDetailViewController
-        
+        let selectedUser = githubUsers[indexPath.row]
+        performSegue(withIdentifier: "goDetailSegues", sender: selectedUser)
+    }
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        if segue.identifier == "goDetailSegues" {
+            guard let detailVC = segue.destination as? UserDetailViewController,
+                  let user = sender as? User else { return }
+            detailVC.user = user
+        }
     }
     func tableView(_ tableView: UITableView, prefetchRowsAt indexPaths: [IndexPath]) {
         let urlsToPrefetch = indexPaths.compactMap { indexPath -> URL? in
@@ -129,7 +136,7 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
         }
     }
     func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
-        if indexPath.row == githubUsers.count - 1 { // Check if this is the last row
+        if indexPath.row == githubUsers.count - 2 { // Check if this is the last row
             if fetchedResultsController.fetchedObjects?.isEmpty == false {
                 loadNextBatchFromCoreData()
             } else {
@@ -159,10 +166,7 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
     private func fetchMoreUsers() {
         guard !isLoading else { return }
         isLoading = true
-
-        // Show refresh control animation
-    
-
+        service.since += 20
         // Fetch additional users (implement pagination in your API)
         service.fetchUsers { [weak self] result in
             guard let self = self else { return }
@@ -214,17 +218,7 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
                         switch saveResult {
                         case .success():
                             print("Save success")
-                            self.service.saveUsersToCoreData(fetchedUsers) { saveResult in
-                                switch saveResult {
-                                case .success():
-                                    print("Save success")
-                                    // NSFetchedResultsController automatically updates the table view
-                                    break
-                                case .failure(let error):
-                                    print("Error saving users: \(error)")
-                                    // Optionally, show an alert to the user
-                                }
-                            }
+
                             break
                         case .failure(let error):
                             print("Error saving users: \(error)")
@@ -241,7 +235,7 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
         let fetchRequest: NSFetchRequest<UserEntity> = UserEntity.fetchRequest()
         let sortDescriptor = NSSortDescriptor(key: "id", ascending: true)
         fetchRequest.sortDescriptors = [sortDescriptor]
-        fetchRequest.fetchLimit = 20
+        fetchRequest.fetchLimit = 5
         fetchRequest.fetchOffset = fetchOffset // Offset for pagination
 
         fetchedResultsController = NSFetchedResultsController(fetchRequest: fetchRequest,

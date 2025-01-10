@@ -14,10 +14,11 @@ struct User: Codable, Identifiable {
 }
 struct DetailedUser: Codable {
     let login: String
-    let id: Int
-    let avatar_url: String
-    let html_url: String
-    let followers: Int
-    let following: Int
-    let location: String
+    let id: Int?
+    let avatar_url: String?
+    let html_url: String?
+    let followers: Int?
+    let following: Int?
+    let location: String?
+    let blog: String?
 }
