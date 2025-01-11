@@ -31,6 +31,7 @@ class GitHubService {
                     let count = try context.count(for: fetchRequest)
                     if count == 0 {
                         let newUser = UserEntity(context: context)
+                        newUser.insertDate = Date()
                         newUser.id = Int64(user.id)
                         newUser.login = user.login
                         newUser.avatar_url = user.avatar_url
@@ -61,7 +62,7 @@ class GitHubService {
         
         // Custom headers
         let headers: HTTPHeaders = [
-            "User-Agent": "Awesome-Octocat-App"
+            "Authorization": "token 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"
         ]
         
         AF.request(urlString, method: .get, parameters: parameters, headers: headers)
@@ -75,7 +76,7 @@ class GitHubService {
                     }
                     completion(.success(users))
                 case .failure(let error):
-                    completion(.failure(error))
+                    completion(.failure(error.localizedDescription as! Error))
                 }
             }
     }

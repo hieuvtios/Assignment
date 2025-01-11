@@ -12,6 +12,7 @@ class UserTableViewCell: UITableViewCell {
     @IBOutlet weak var imgAvatar: UIImageView!
     override func awakeFromNib() {
         super.awakeFromNib()
+        self.imgAvatar.makeRounded()
         // Initialization code
     }
 
@@ -22,3 +23,4 @@ class UserTableViewCell: UITableViewCell {
     }
     
 }
+

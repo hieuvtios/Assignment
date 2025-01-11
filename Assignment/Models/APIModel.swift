@@ -14,14 +14,19 @@ class APIService {
     init(){}
     
     func fetchGithubUsers(completion: @escaping (Result<[User], Error>) -> Void) {
-        AF.request(Constants.serverAPI).responseDecodable(of: [User].self) { response in
-            switch response.result {
-            case .success(let users):
-                completion(.success(users))
-            case .failure(let error):
-                completion(.failure(error))
+        let headers: HTTPHeaders = [
+            "Authorization": "token \(Constants.token)"
+        ]
+        
+        AF.request(Constants.serverAPI, headers: headers)
+            .responseDecodable(of: [User].self) { response in
+                switch response.result {
+                case .success(let users):
+                    completion(.success(users))
+                case .failure(let error):
+                    completion(.failure(error))
+                }
             }
-        }
     }
 
 }

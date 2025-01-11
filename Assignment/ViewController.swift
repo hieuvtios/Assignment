@@ -79,7 +79,14 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
                     DispatchQueue.main.async {
                         self.tblGithubUsers.reloadData()
                     }
-                    
+                    self.service.saveUsersToCoreData(self.githubUsers) { saveResult in
+                        switch saveResult {
+                        case .success():
+                            print("New users saved to Core Data")
+                        case .failure(let error):
+                            print("Error saving new users: \(error)")
+                        }
+                    }
                 case .failure(let error):
                     print("Error fetching data: \(error)")
                     DispatchQueue.main.async {
@@ -102,7 +109,7 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
     }
     
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        return 200
+        return 150
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -110,7 +117,7 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
                 return UITableViewCell()
             }
             let user = githubUsers[indexPath.row]
-        cell.lblUsername.text = "Index:\(indexPath.row) - \(user.login)"
+        cell.lblUsername.text = user.login
             cell.imgAvatar.sd_setImage(with: NSURL(string: user.avatar_url) as URL?)
             return cell
     }
@@ -136,12 +143,8 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
         }
     }
     func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
-        if indexPath.row == githubUsers.count - 2 { // Check if this is the last row
-            if fetchedResultsController.fetchedObjects?.isEmpty == false {
-                loadNextBatchFromCoreData()
-            } else {
+        if indexPath.row == githubUsers.count - 1{ // Check if this is the last row
                 fetchMoreUsers()
-            }
         }
     }
     private func loadNextBatchFromCoreData() {
@@ -164,7 +167,6 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
         }
     }
     private func fetchMoreUsers() {
-        guard !isLoading else { return }
         isLoading = true
         service.since += 20
         // Fetch additional users (implement pagination in your API)
@@ -233,11 +235,10 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
         }
     private func setupFetchedResultsController(fetchOffset: Int = 0) {
         let fetchRequest: NSFetchRequest<UserEntity> = UserEntity.fetchRequest()
-        let sortDescriptor = NSSortDescriptor(key: "id", ascending: true)
-        fetchRequest.sortDescriptors = [sortDescriptor]
         fetchRequest.fetchLimit = 5
         fetchRequest.fetchOffset = fetchOffset // Offset for pagination
-
+        let sortDescriptor = NSSortDescriptor(key: "insertDate", ascending: true) // sort criteria
+        fetchRequest.sortDescriptors = [sortDescriptor]
         fetchedResultsController = NSFetchedResultsController(fetchRequest: fetchRequest,
                                                               managedObjectContext: CoreDataStack.shared.context,
                                                               sectionNameKeyPath: nil,
