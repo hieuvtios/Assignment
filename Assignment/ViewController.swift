@@ -8,16 +8,20 @@
 import UIKit
 import CoreData
 import SDWebImage
+import Network // Import Network framework
 
 class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource,UITableViewDataSourcePrefetching, NSFetchedResultsControllerDelegate {
     
-    
+    private let monitor = NWPathMonitor() // Network monitor instance
+    private let queue = DispatchQueue(label: "NetworkMonitor") // Background queue for monitoring
+
     var githubUsers: [User] = []
     private var fetchedResultsController: NSFetchedResultsController<UserEntity>!
     private let service = GitHubService()
     private let context = CoreDataStack.shared
     private var isLoading = false
     private var currentFetchOffset = 0
+    var isInitialLoad = true
 
     @IBOutlet weak var tblGithubUsers: UITableView!
     
@@ -30,12 +34,14 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
         // Load users from core data if cached
         if let cachedUsers = fetchedResultsController.fetchedObjects, !cachedUsers.isEmpty {
             // Limit to 20 users
+            loadNextBatchFromCoreData()
             self.githubUsers = cachedUsers.prefix(20).map {
                 User(id: Int($0.id),
                      login: $0.login ?? "",
                      avatar_url: $0.avatar_url ?? "",
                      html_url: $0.html_url ?? "")
             }
+            isInitialLoad = false
             DispatchQueue.main.async {
                 self.tblGithubUsers.reloadData()
             }
@@ -44,29 +50,34 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
             loadFirstPage()
         }
     }
-    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        
+        // Start monitoring network
+        monitor.pathUpdateHandler = { [weak self] path in
+            guard let self = self else { return }
+            
+            if path.status == .unsatisfied {
+                // No Internet Connection
+                DispatchQueue.main.async {
+                  print("No Internet Connection, check your network settings")
+                    // Clear local data and update UI
+                    self.githubUsers.removeAll()
+                    self.tblGithubUsers.reloadData()
+                }
+            } else {
+                // Internet Connection Restored
+               
+            }
+        }
+        monitor.start(queue: queue)
+    }
     // Register nib file
     func registerNib(){
         tblGithubUsers.register(UINib(nibName: "UserTableViewCell", bundle: nil), forCellReuseIdentifier: "userCell")
 
     }
-    @IBAction func cleanDBTapped(_ sender: Any) {
-        let fetchRequest: NSFetchRequest<NSFetchRequestResult> = UserEntity.fetchRequest()
-        let deleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
-        
-        do {
-            // Perform the delete operation
-            try context.context.execute(deleteRequest)
-            try context.context.save()
-            print("Core Data cleared successfully.")
-            
-            // Clear the local array and reload the table
-            self.githubUsers.removeAll()
-            self.tblGithubUsers.reloadData()
-        } catch {
-            print("Failed to delete records from Core Data: \(error)")
-        }
-    }
+
     // Fetch all github users from API first page
     func loadFirstPage() {
         APIService().fetchGithubUsers { [weak self] result in
@@ -82,7 +93,8 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
                     self.service.saveUsersToCoreData(self.githubUsers) { saveResult in
                         switch saveResult {
                         case .success():
-                            print("New users saved to Core Data")
+                            self.isInitialLoad = false
+                            print("Frirst page loaded")
                         case .failure(let error):
                             print("Error saving new users: \(error)")
                         }
@@ -143,6 +155,9 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
         }
     }
     func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+        if isInitialLoad {
+               return
+           }
         if indexPath.row == githubUsers.count - 1{ // Check if this is the last row
                 fetchMoreUsers()
         }
@@ -167,6 +182,7 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
         }
     }
     private func fetchMoreUsers() {
+        print("fetchMoreUsers")
         isLoading = true
         service.since += 20
         // Fetch additional users (implement pagination in your API)
@@ -235,7 +251,7 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
         }
     private func setupFetchedResultsController(fetchOffset: Int = 0) {
         let fetchRequest: NSFetchRequest<UserEntity> = UserEntity.fetchRequest()
-        fetchRequest.fetchLimit = 5
+        fetchRequest.fetchLimit = 20 // set limit = per page
         fetchRequest.fetchOffset = fetchOffset // Offset for pagination
         let sortDescriptor = NSSortDescriptor(key: "insertDate", ascending: true) // sort criteria
         fetchRequest.sortDescriptors = [sortDescriptor]

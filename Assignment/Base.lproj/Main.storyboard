@@ -63,13 +63,7 @@
                             <constraint firstItem="MaS-av-t36" firstAttribute="leading" secondItem="6Tk-OE-BBY" secondAttribute="leading" id="nao-R8-1vM"/>
                         </constraints>
                     </view>
-                    <navigationItem key="navigationItem" title="GitHub Users" id="KXa-0C-lMH">
-                        <barButtonItem key="rightBarButtonItem" title="Clean DB" id="zR9-cT-4wB">
-                            <connections>
-                                <action selector="cleanDBTapped:" destination="BYZ-38-t0r" id="2KN-pc-TUC"/>
-                            </connections>
-                        </barButtonItem>
-                    </navigationItem>
+                    <navigationItem key="navigationItem" title="GitHub Users" id="KXa-0C-lMH"/>
                     <connections>
                         <outlet property="tblGithubUsers" destination="MaS-av-t36" id="Afo-iv-EeT"/>
                         <segue destination="ZNk-Av-dqb" kind="show" identifier="goDetailSegues" id="6r0-Nh-PGS"/>
