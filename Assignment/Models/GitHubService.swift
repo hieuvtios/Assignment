@@ -50,6 +50,12 @@ class GitHubService {
                 // Step 2: Filter out users that already exist
                 let newUsers = users.filter { !existingIDs.contains(Int64($0.id)) }
                 
+                guard !newUsers.isEmpty else {
+                    // No new users to insert, return success
+                    completion(.success(()))
+                    return
+                }
+                
                 // Step 3: Use NSBatchInsertRequest for faster inserts
                 let batchInsert = NSBatchInsertRequest(entity: UserEntity.entity(), objects: newUsers.map { user in
                     [
@@ -62,11 +68,16 @@ class GitHubService {
                 })
                 
                 // Step 4: Execute the batch insert
-                try context.execute(batchInsert)
-                try context.save()
+                let result = try context.execute(batchInsert)
                 
-                // Step 5: Call completion with success
-                completion(.success(()))
+                if let batchInsertResult = result as? NSBatchInsertResult, batchInsertResult.result as? Bool == true {
+                    try context.save()
+                    completion(.success(()))
+                } else {
+                    // Batch insert did not return expected result
+                    let error = NSError(domain: "CoreDataError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Batch insert failed"])
+                    completion(.failure(error))
+                }
             } catch {
                 // Handle errors
                 completion(.failure(error))

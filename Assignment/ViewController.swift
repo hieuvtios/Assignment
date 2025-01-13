@@ -8,8 +8,7 @@
 import UIKit
 import CoreData
 import SDWebImage
-import Network // Import Network framework
-import Kingfisher
+import Network
 
 class ViewController: UIViewController {
     // MARK: - Properties
@@ -24,22 +23,32 @@ class ViewController: UIViewController {
     private var currentPage = 0
     private var isInitialLoad = true
     
+    @IBOutlet weak var indicator: UIActivityIndicatorView!
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
         setupFetchedResultsController()
         loadInitialData()
+        self.tblGithubUsers.estimatedRowHeight = 150
     }
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        SDWebImagePrefetcher.shared.cancelPrefetching()
         startNetworkMonitoring()
+    }
+    
+    deinit {
+        fetchedResultsController.delegate = nil
+        networkMonitor.cancel()
+        SDWebImagePrefetcher.shared.cancelPrefetching()
     }
 }
 
 // MARK: - Setup
 private extension ViewController {
+    
     func setupUI() {
         self.tblGithubUsers.register(UINib(nibName: "UserTableViewCell", bundle: nil),
                          forCellReuseIdentifier: "userCell")
@@ -103,7 +112,6 @@ private extension ViewController {
     func loadFirstPage() {
         service.fetchGithubUsers { [weak self] result in
             guard let self = self else { return }
-            
             switch result {
             case .success(let users):
                 self.handleFetchSuccess(users)
@@ -125,8 +133,10 @@ private extension ViewController {
             
             switch result {
             case .success(let newUsers):
+                indicator.stopAnimating()
                 self.handlePaginationSuccess(newUsers)
             case .failure(let error):
+                indicator.stopAnimating()
                 self.handleFetchError(error)
             }
         }
@@ -166,7 +176,12 @@ private extension ViewController {
         
         service.saveUsersToCoreData(newUsers) { _ in }
     }
-    
+    func resizeImage(_ image: UIImage, targetSize: CGSize) -> UIImage {
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        return renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+    }
     func handleFetchError(_ error: Error) {
         DispatchQueue.main.async {
             let alert = UIAlertController(
@@ -200,7 +215,7 @@ extension ViewController: UITableViewDelegate, UITableViewDataSource {
         
         let user = users[indexPath.row]
         cell.lblUsername.text = user.login
-        if let url = URL(string: user.avatar_url) {
+        if URL(string: user.avatar_url) != nil {
             cell.configure(with: user)
         } else {
             cell.imgAvatar.image = UIImage(named: "placeholder")
@@ -216,6 +231,7 @@ extension ViewController: UITableViewDelegate, UITableViewDataSource {
                   forRowAt indexPath: IndexPath) {
         if !isInitialLoad && indexPath.row == users.count - 1 {
             fetchMoreUsers()
+            indicator.startAnimating()
         }
     }
     

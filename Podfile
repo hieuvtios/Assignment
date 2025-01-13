@@ -8,8 +8,6 @@ target 'Assignment' do
   # Pods for Assignment
 	pod 'Alamofire'
   pod 'SDWebImage'
-  pod 'Kingfisher'
-  pod 'SkeletonView'
   target 'AssignmentTests' do
     inherit! :search_paths
     # Pods for testing

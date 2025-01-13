@@ -12,6 +12,13 @@ class UserTableViewCell: UITableViewCell {
     @IBOutlet weak var lblUsername: UILabel!
     @IBOutlet weak var imgAvatar: UIImageView!
 
+    override func awakeFromNib() {
+        super.awakeFromNib()
+        // Make the image view a circle
+        imgAvatar.layer.cornerRadius = imgAvatar.frame.size.width / 2
+        imgAvatar.clipsToBounds = true
+    }
+
     override func prepareForReuse() {
         super.prepareForReuse()
         // Cancel any pending image downloads and reset the image
@@ -28,7 +35,7 @@ class UserTableViewCell: UITableViewCell {
             imgAvatar.sd_setImage(
                 with: url,
                 placeholderImage: UIImage(named: "placeholder"),
-                options: [.lowPriority, .avoidDecodeImage],
+                options: [.lowPriority, .avoidAutoCancelImage],
                 context: [.imageThumbnailPixelSize: CGSize(width: 150, height: 150)]
             )
         }
