@@ -12,9 +12,9 @@ import CoreData
 import Alamofire
 
 class GitHubService {
-    private let perPage = 20
+    let perPage = 20
     var since = 0
-    private let context = CoreDataStack.shared
+    let context = CoreDataStack.shared
     let coreDataStack = CoreDataStack.shared
     static let shared = GitHubService()
     
