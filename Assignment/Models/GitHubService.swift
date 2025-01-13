@@ -11,14 +11,27 @@ import UIKit
 import CoreData
 import Alamofire
 
-
-
 class GitHubService {
     private let perPage = 20
     var since = 0
     private let context = CoreDataStack.shared
     let coreDataStack = CoreDataStack.shared
-
+    
+    func fetchGithubUsers(completion: @escaping (Result<[User], Error>) -> Void) {
+        let headers: HTTPHeaders = [
+            "Authorization": "token \(Constants.token)"
+        ]
+        
+        AF.request(Constants.serverAPI, headers: headers)
+            .responseDecodable(of: [User].self) { response in
+                switch response.result {
+                case .success(let users):
+                    completion(.success(users))
+                case .failure(let error):
+                    completion(.failure(error))
+                }
+            }
+    }
     func saveUsersToCoreData(_ users: [User], completion: @escaping (Result<Void, Error>) -> Void) {
         let context = CoreDataStack.shared.persistentContainer.newBackgroundContext()
         context.perform {

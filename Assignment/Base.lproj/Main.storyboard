@@ -65,7 +65,7 @@
                     </view>
                     <navigationItem key="navigationItem" title="GitHub Users" id="KXa-0C-lMH"/>
                     <connections>
-                        <outlet property="tblGithubUsers" destination="MaS-av-t36" id="Afo-iv-EeT"/>
+                        <outlet property="tblGithubUsers" destination="MaS-av-t36" id="Gp8-CV-Yca"/>
                         <segue destination="ZNk-Av-dqb" kind="show" identifier="goDetailSegues" id="6r0-Nh-PGS"/>
                     </connections>
                 </viewController>
@@ -153,7 +153,6 @@
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                         <constraints>
                             <constraint firstItem="uCj-zP-ydP" firstAttribute="top" secondItem="fDk-mD-BgU" secondAttribute="top" constant="38" id="PAF-xH-4NN"/>
-                            <constraint firstItem="uCj-zP-ydP" firstAttribute="width" secondItem="7XR-q3-39I" secondAttribute="height" multiplier="45:284" id="Qaa-MB-1tv"/>
                             <constraint firstItem="uCj-zP-ydP" firstAttribute="leading" secondItem="fDk-mD-BgU" secondAttribute="leading" constant="16" id="tHL-LL-Rhf"/>
                         </constraints>
                     </view>
