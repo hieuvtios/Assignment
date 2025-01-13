@@ -6,12 +6,12 @@
 //
 
 import UIKit
-import CoreData
+import Alamofire
 
 class UserDetailViewController: UIViewController {
     // MARK: - Properties
     var user: User?
-    private let coreDataContext = CoreDataStack.shared.context
+    private let service = GitHubService.shared
     
     private let activityIndicator: UIActivityIndicatorView = {
         let indicator = UIActivityIndicatorView(style: .large)
@@ -61,74 +61,20 @@ private extension UserDetailViewController {
         guard let user = user else { return }
         
         startLoading()
-        fetchUserDetails(for: user)
-    }
-    
-    func fetchUserDetails(for user: User) {
-        let urlString = "https://api.github.com/users/\(user.login)"
-        guard let url = URL(string: urlString) else { return }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("token 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",
-                        forHTTPHeaderField: "Authorization")
-        
-        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+        service.fetchAndSaveUserDetails(for: user) { [weak self] result in
             guard let self = self else { return }
             
             DispatchQueue.main.async {
                 self.stopLoading()
+                
+                switch result {
+                case .success(let userEntity):
+                    self.updateUI(with: userEntity)
+                case .failure(let error):
+                    self.handleError(error)
+                }
             }
-            
-            if let error = error {
-                self.handleError(error)
-                return
-            }
-            
-            guard let data = data else {
-                self.handleError(NSError(domain: "", code: -1))
-                return
-            }
-            
-            self.processUserDetails(data, for: user)
-        }.resume()
-    }
-    
-    func processUserDetails(_ data: Data, for user: User) {
-        do {
-            let userDetails = try JSONDecoder().decode(DetailedUser.self, from: data)
-            let userEntity = try updateCoreData(with: userDetails, for: user)
-            
-            DispatchQueue.main.async {
-                self.updateUI(with: userEntity)
-            }
-        } catch {
-            handleError(error)
         }
-    }
-}
-
-// MARK: - Core Data
-private extension UserDetailViewController {
-    func updateCoreData(with details: DetailedUser, for user: User) throws -> UserEntity {
-        let fetchRequest: NSFetchRequest<UserEntity> = UserEntity.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "login == %@", user.login)
-        
-        let userEntity: UserEntity
-        if let existingUser = try coreDataContext.fetch(fetchRequest).first {
-            userEntity = existingUser
-        } else {
-            userEntity = UserEntity(context: coreDataContext)
-            userEntity.login = user.login
-        }
-        
-        userEntity.blog = details.blog ?? ""
-        userEntity.followers = Int64(details.followers ?? 0)
-        userEntity.following = Int64(details.following ?? 0)
-        userEntity.location = details.location ?? ""
-        
-        try coreDataContext.save()
-        return userEntity
     }
 }
 
@@ -169,9 +115,7 @@ private extension UserDetailViewController {
 private extension UserDetailViewController {
     func handleError(_ error: Error) {
         print("Error: \(error.localizedDescription)")
-        DispatchQueue.main.async {
-            self.showErrorAlert()
-        }
+        showErrorAlert()
     }
     
     func showErrorAlert() {
@@ -182,12 +126,5 @@ private extension UserDetailViewController {
         )
         alert.addAction(UIAlertAction(title: "OK", style: .default))
         present(alert, animated: true)
-    }
-}
-
-// MARK: - Public Interface
-extension UserDetailViewController {
-    func configure(with user: User) {
-        self.user = user
     }
 }

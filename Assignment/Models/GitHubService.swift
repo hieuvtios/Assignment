@@ -16,6 +16,7 @@ class GitHubService {
     var since = 0
     private let context = CoreDataStack.shared
     let coreDataStack = CoreDataStack.shared
+    static let shared = GitHubService()
     
     func fetchGithubUsers(completion: @escaping (Result<[User], Error>) -> Void) {
         let headers: HTTPHeaders = [
@@ -32,11 +33,11 @@ class GitHubService {
                 }
             }
     }
+    
     func saveUsersToCoreData(_ users: [User], completion: @escaping (Result<Void, Error>) -> Void) {
         let context = CoreDataStack.shared.persistentContainer.newBackgroundContext()
         context.perform {
             for user in users {
-                // Check if user already exists to prevent duplicates
                 let fetchRequest: NSFetchRequest<UserEntity> = UserEntity.fetchRequest()
                 fetchRequest.predicate = NSPredicate(format: "id == %d", user.id)
 
@@ -65,7 +66,6 @@ class GitHubService {
         }
     }
 
-    // Fetch users from GitHub API
     func fetchUsers(completion: @escaping (Result<[User], Error>) -> Void) {
         let urlString = "https://api.github.com/users"
         let parameters: [String: Any] = [
@@ -73,40 +73,72 @@ class GitHubService {
             "since": since
         ]
         
-        // Custom headers
         let headers: HTTPHeaders = [
             "Authorization": "token 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"
         ]
         
         AF.request(urlString, method: .get, parameters: parameters, headers: headers)
-            .validate() // Automatically validates the status code (200-299) and content type
+            .validate()
             .responseDecodable(of: [User].self) { [weak self] response in
                 switch response.result {
                 case .success(let users):
-                    // Update 'since' for pagination
                     if let lastUser = users.last {
                         self?.since = lastUser.id
                     }
                     completion(.success(users))
                 case .failure(let error):
-                    completion(.failure(error.localizedDescription as! Error))
+                    completion(.failure(error))
                 }
             }
     }
-    // Fetch detailed user info
-    func fetchUserDetails(username: String, completion: @escaping (Result<DetailedUser, Error>) -> Void) {
-        let urlString = "https://api.github.com/users/\(username)"
+    
+    // New method combining network request and CoreData operations
+    func fetchAndSaveUserDetails(for user: User, completion: @escaping (Result<UserEntity, Error>) -> Void) {
+        let urlString = "https://api.github.com/users/\(user.login)"
+        let headers: HTTPHeaders = [
+            "Authorization": "token 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"
+        ]
         
-        AF.request(urlString, method: .get)
-            .validate() // Automatically validates the status code (200-299) and content type
-            .responseDecodable(of: DetailedUser.self) { response in
+        AF.request(urlString, method: .get, headers: headers)
+            .validate()
+            .responseDecodable(of: DetailedUser.self) { [weak self] response in
+                guard let self = self else { return }
+                
                 switch response.result {
-                case .success(let detailedUser):
-                    completion(.success(detailedUser))
+                case .success(let userDetails):
+                    do {
+                        let userEntity = try self.updateUserInCoreData(with: userDetails, for: user)
+                        completion(.success(userEntity))
+                    } catch {
+                        completion(.failure(error))
+                    }
                 case .failure(let error):
                     completion(.failure(error))
                 }
             }
+    }
+    
+    // Helper method for CoreData operations
+    private func updateUserInCoreData(with details: DetailedUser, for user: User) throws -> UserEntity {
+        let context = CoreDataStack.shared.context
+        let fetchRequest: NSFetchRequest<UserEntity> = UserEntity.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "login == %@", user.login)
+        
+        let userEntity: UserEntity
+        if let existingUser = try context.fetch(fetchRequest).first {
+            userEntity = existingUser
+        } else {
+            userEntity = UserEntity(context: context)
+            userEntity.login = user.login
+        }
+        
+        userEntity.blog = details.blog ?? ""
+        userEntity.followers = Int64(details.followers ?? 0)
+        userEntity.following = Int64(details.following ?? 0)
+        userEntity.location = details.location ?? ""
+        
+        try context.save()
+        return userEntity
     }
 }
 
