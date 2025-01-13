@@ -9,6 +9,7 @@ import UIKit
 import CoreData
 import SDWebImage
 import Network // Import Network framework
+import Kingfisher
 
 class ViewController: UIViewController {
     // MARK: - Properties
@@ -199,8 +200,11 @@ extension ViewController: UITableViewDelegate, UITableViewDataSource {
         
         let user = users[indexPath.row]
         cell.lblUsername.text = user.login
-        cell.imgAvatar.sd_setImage(with: URL(string: user.avatar_url))
-        
+        if let url = URL(string: user.avatar_url) {
+            cell.configure(with: user)
+        } else {
+            cell.imgAvatar.image = UIImage(named: "placeholder")
+        }
         return cell
     }
     

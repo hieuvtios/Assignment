@@ -36,31 +36,39 @@ class GitHubService {
     
     func saveUsersToCoreData(_ users: [User], completion: @escaping (Result<Void, Error>) -> Void) {
         let context = CoreDataStack.shared.persistentContainer.newBackgroundContext()
+        context.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
         context.perform {
-            for user in users {
-                let fetchRequest: NSFetchRequest<UserEntity> = UserEntity.fetchRequest()
-                fetchRequest.predicate = NSPredicate(format: "id == %d", user.id)
-
-                do {
-                    let count = try context.count(for: fetchRequest)
-                    if count == 0 {
-                        let newUser = UserEntity(context: context)
-                        newUser.insertDate = Date()
-                        newUser.id = Int64(user.id)
-                        newUser.login = user.login
-                        newUser.avatar_url = user.avatar_url
-                        newUser.html_url = user.html_url
-                    }
-                } catch {
-                    completion(.failure(error))
-                    return
-                }
-            }
-
             do {
+                // Step 1: Fetch all existing user IDs in one query
+                let fetchRequest: NSFetchRequest<NSDictionary> = NSFetchRequest(entityName: "UserEntity")
+                fetchRequest.propertiesToFetch = ["id"]
+                fetchRequest.resultType = .dictionaryResultType
+                
+                let results = try context.fetch(fetchRequest)
+                let existingIDs = Set(results.compactMap { $0["id"] as? Int64 })
+                
+                // Step 2: Filter out users that already exist
+                let newUsers = users.filter { !existingIDs.contains(Int64($0.id)) }
+                
+                // Step 3: Use NSBatchInsertRequest for faster inserts
+                let batchInsert = NSBatchInsertRequest(entity: UserEntity.entity(), objects: newUsers.map { user in
+                    [
+                        "id": Int64(user.id),
+                        "login": user.login,
+                        "avatar_url": user.avatar_url,
+                        "html_url": user.html_url,
+                        "insertDate": Date()
+                    ] as [String: Any]
+                })
+                
+                // Step 4: Execute the batch insert
+                try context.execute(batchInsert)
                 try context.save()
+                
+                // Step 5: Call completion with success
                 completion(.success(()))
             } catch {
+                // Handle errors
                 completion(.failure(error))
             }
         }
