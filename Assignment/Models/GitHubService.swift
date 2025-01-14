@@ -18,12 +18,17 @@ class GitHubService {
     let coreDataStack = CoreDataStack.shared
     static let shared = GitHubService()
     
+    /// Fetches a list of GitHub users from the API.
+    /// - Parameter completion: A closure called with the result, either a list of users or an error.
     func fetchGithubUsers(completion: @escaping (Result<[User], Error>) -> Void) {
+        
+        // Use a header when testing the GitHub API.
         let headers: HTTPHeaders = [
             "Authorization": "token \(Constants.token)"
         ]
         
-        AF.request(Constants.serverAPI, headers: headers)
+        
+        AF.request(Constants.serverAPI, headers: nil)
             .responseDecodable(of: [User].self) { response in
                 switch response.result {
                 case .success(let users):
@@ -34,12 +39,16 @@ class GitHubService {
             }
     }
     
+    /// Saves a list of GitHub users to CoreData, skipping users that already exist.
+    /// - Parameters:
+    ///   - users: A list of users to save.
+    ///   - completion: A closure called with the result, either success or an error.
     func saveUsersToCoreData(_ users: [User], completion: @escaping (Result<Void, Error>) -> Void) {
         let context = CoreDataStack.shared.persistentContainer.newBackgroundContext()
         context.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
         context.perform {
             do {
-                // Step 1: Fetch all existing user IDs in one query
+                // Fetch existing user IDs to prevent duplicates.
                 let fetchRequest: NSFetchRequest<NSDictionary> = NSFetchRequest(entityName: "UserEntity")
                 fetchRequest.propertiesToFetch = ["id"]
                 fetchRequest.resultType = .dictionaryResultType
@@ -47,16 +56,15 @@ class GitHubService {
                 let results = try context.fetch(fetchRequest)
                 let existingIDs = Set(results.compactMap { $0["id"] as? Int64 })
                 
-                // Step 2: Filter out users that already exist
+                // Filter out already existing users.
                 let newUsers = users.filter { !existingIDs.contains(Int64($0.id)) }
                 
                 guard !newUsers.isEmpty else {
-                    // No new users to insert, return success
                     completion(.success(()))
                     return
                 }
                 
-                // Step 3: Use NSBatchInsertRequest for faster inserts
+                // Insert new users into CoreData using batch insert.
                 let batchInsert = NSBatchInsertRequest(entity: UserEntity.entity(), objects: newUsers.map { user in
                     [
                         "id": Int64(user.id),
@@ -67,36 +75,35 @@ class GitHubService {
                     ] as [String: Any]
                 })
                 
-                // Step 4: Execute the batch insert
                 let result = try context.execute(batchInsert)
                 
                 if let batchInsertResult = result as? NSBatchInsertResult, batchInsertResult.result as? Bool == true {
                     try context.save()
                     completion(.success(()))
                 } else {
-                    // Batch insert did not return expected result
                     let error = NSError(domain: "CoreDataError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Batch insert failed"])
                     completion(.failure(error))
                 }
             } catch {
-                // Handle errors
                 completion(.failure(error))
             }
         }
     }
 
+    /// Fetches a paginated list of GitHub users.
+    /// - Parameter completion: A closure called with the result, either a list of users or an error.
     func fetchUsers(completion: @escaping (Result<[User], Error>) -> Void) {
         let urlString = "https://api.github.com/users"
         let parameters: [String: Any] = [
             "per_page": perPage,
             "since": since
         ]
-        
+        // Use a header when testing the GitHub API.
         let headers: HTTPHeaders = [
             "Authorization": "token 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"
         ]
         
-        AF.request(urlString, method: .get, parameters: parameters, headers: headers)
+        AF.request(urlString, method: .get, parameters: parameters, headers: nil)
             .validate()
             .responseDecodable(of: [User].self) { [weak self] response in
                 switch response.result {
@@ -111,14 +118,18 @@ class GitHubService {
             }
     }
     
-    // New method combining network request and CoreData operations
+    /// Fetches detailed information about a GitHub user and saves it to CoreData.
+    /// - Parameters:
+    ///   - user: The GitHub user to fetch details for.
+    ///   - completion: A closure called with the result, either a UserEntity or an error.
     func fetchAndSaveUserDetails(for user: User, completion: @escaping (Result<UserEntity, Error>) -> Void) {
         let urlString = "https://api.github.com/users/\(user.login)"
+        // use header when testing API Github
         let headers: HTTPHeaders = [
             "Authorization": "token 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"
         ]
         
-        AF.request(urlString, method: .get, headers: headers)
+        AF.request(urlString, method: .get, headers: nil)
             .validate()
             .responseDecodable(of: DetailedUser.self) { [weak self] response in
                 guard let self = self else { return }
@@ -137,7 +148,12 @@ class GitHubService {
             }
     }
     
-    // Helper method for CoreData operations
+    /// Updates or creates a GitHub user record in CoreData.
+    /// - Parameters:
+    ///   - details: The detailed user data from the API.
+    ///   - user: The basic user data.
+    /// - Returns: The saved UserEntity.
+    /// - Throws: An error if the save operation fails.
     private func updateUserInCoreData(with details: DetailedUser, for user: User) throws -> UserEntity {
         let context = CoreDataStack.shared.context
         let fetchRequest: NSFetchRequest<UserEntity> = UserEntity.fetchRequest()
@@ -161,8 +177,4 @@ class GitHubService {
     }
 }
 
-enum NetworkError: Error {
-    case invalidURL
-    case invalidResponse
-    case noData
-}
+

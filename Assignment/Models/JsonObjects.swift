@@ -22,3 +22,8 @@ struct DetailedUser: Codable {
     let location: String?
     let blog: String?
 }
+enum NetworkError: Error {
+    case invalidURL
+    case invalidResponse
+    case noData
+}
