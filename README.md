@@ -10,18 +10,6 @@ o Users’ information must be shown immediately when the administrator
 launches the application for the second time.
 o Clicking on an item will navigate to the page of user details.
 
-❖ Important Notice:
-o Using any architecture/model you prefer, but scalable and reusable.
-o Application is implemented for native Android or native iOS using Kotlin
-or Swift, but both are a big plus.
-o Unit testing must be applied on the project.
-o Remember to write documentation comments in Kotlin files (Android) or
-Swift files (iOS).
-o XCode version: feel free to choose the familiar Xcode version which you
-wanna use to develop this exercise.
-o Remember to compress the project with source code only (excluding
-generated build, outputs...).
-
 Structure of Project
 ```bash
 Assignment/
