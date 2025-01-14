@@ -23,4 +23,6 @@ Assignment/
 │   └── Assignment.xcdatamodel : Core Data File
 AssignmentTests/
 ├── AssignmentTests : Unit test cases of application
+Pods/
+├── Podfile 
 ```
