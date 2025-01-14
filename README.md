@@ -1,5 +1,3 @@
-# Assignment
-
 Structure of Project
 
 Assignment/
